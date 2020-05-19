@@ -1,12 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+
+import { PhotoComparingService } from './core/photo-comparing/photo-comparing.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly photoComparingService: PhotoComparingService
+  ) {}
 
   @Get()
   getHello(): string {
-    return this.appService.getHello();
+    return this.photoComparingService.test();
   }
 }
