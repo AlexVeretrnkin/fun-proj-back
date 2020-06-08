@@ -51,13 +51,13 @@ $ npm run start:prod
 
 ```bash
 # unit tests
-$ npm run test
+$ npm run compareTwoImages
 
 # e2e tests
-$ npm run test:e2e
+$ npm run compareTwoImages:e2e
 
-# test coverage
-$ npm run test:cov
+# compareTwoImages coverage
+$ npm run compareTwoImages:cov
 ```
 
 ## Support
