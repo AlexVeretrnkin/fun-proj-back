@@ -1,51 +1,79 @@
 import { Injectable } from '@nestjs/common';
 
-import { Browser, launch, Page } from 'puppeteer';
+import { Browser, launch, Page, SerializableOrJSHandle } from 'puppeteer';
 
-import { TitlePreviewModel } from '../../models/title-preview.model';
+import { TitlePreviewEntity } from '../../entity/title-preview-entity';
+import { fromPromise } from 'rxjs/internal-compatibility';
+import { switchMap, tap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { AnilibriaScrapingPreviewModel } from '../../models/scraping/anilibria-scraping-preview.model';
+import { anilibriaScrapingPreviewConfig } from '../../models/scraping-config/anilibria-scraping-preview.config';
+import { TitleService } from '../title/title.service';
 
 @Injectable()
 export class WebScrapingService {
-  private readonly ongoingCell: string = 'goodcell';
+  private readonly previewConfig: AnilibriaScrapingPreviewModel = anilibriaScrapingPreviewConfig;
 
-  private infoData: TitlePreviewModel[] = [];
+  private browser: Browser;
+  private page: Page;
 
-  public async parseSite(): Promise<TitlePreviewModel[]> {
-    console.log(this.infoData);
+  private test: TitlePreviewEntity = new TitlePreviewEntity();
 
-    const browser: Browser = await launch();
+  constructor(
+    private readonly titleService: TitleService
+  ) {
+  }
 
-    const page: Page = await browser.newPage();
+  public parseSite(): Observable<TitlePreviewEntity[]> {
+    return fromPromise(launch({headless: false}))
+      .pipe(
+        tap((browser: Browser) => this.browser = browser),
+        switchMap(() => this.browser.newPage()),
+        tap((page: Page) => this.page = page),
+        switchMap((page: Page) => page.goto('https://www.anilibria.tv/pages/schedule.php')),
+        switchMap(() => fromPromise(this.page.evaluate((config: AnilibriaScrapingPreviewModel) => {
+                const infoItem: Record<string, any> = {};
 
-    await page.goto('https://www.anilibria.tv/pages/schedule.php');
+                const info: Record<string, any>[] = [];
 
-    this.infoData = await page.evaluate(() => {
-      const infoItem: Record<string, any> = {};
+                [...document.getElementsByClassName(config.previewItemClassName)]
+                  .forEach((item: HTMLLinkElement) => {
+                    infoItem.titleLink = item.querySelectorAll('a').item(0).href;
 
-      const info: Record<string, any>[] = [];
+                    infoItem.title = item.querySelectorAll(`span.${config.titleNameClassName}`)
+                      .item(0).textContent;
 
-      [...document.getElementsByClassName('goodcell')]
-        .forEach((item: HTMLLinkElement, idx: number) => {
-            [...item.children].forEach((item: Element & HTMLImageElement) => {
-              [...item.children].forEach((item: Element & HTMLImageElement) => {
-                if (item.children[0]) {
-                  infoItem.title = item.children[0].textContent;
-                  infoItem.series = parseInt(item.children[1].textContent.charAt(item.children[1].textContent.length - 1));
-                  infoItem.description = item.children[2].textContent;
-                } else {
-                  infoItem.imgUrl = item.src;
-                }
-              });
-            });
+                    infoItem.series = parseInt(
+                      item.querySelectorAll(`span.${config.titleSeriesClassName}`)
+                        .item(0).textContent
+                        .match(/\d+/g)[1]
+                    );
 
-            info.push({...infoItem})
-          });
+                    infoItem.description =
+                      item.querySelectorAll(`span.${config.titleDescriptionClassName}`)
+                        .item(0).textContent;
 
-      return info;
-    }) as TitlePreviewModel[];
+                    infoItem.imgUrl = item.querySelectorAll('a').item(0).href;
 
-    await browser.close();
+                    info.push({ ...infoItem });
+                  });
 
-    return this.infoData;
+                return info;
+              }, this.previewConfig as unknown as SerializableOrJSHandle),
+            )
+        ),
+        tap(() => this.browser.close()),
+        tap(() => this.titleService.addTitles([
+          new TitlePreviewEntity({
+            id: 0,
+            imgUrl: '',
+            title: '',
+            description: '',
+            series: 1,
+            totalSeries: 10,
+            status: 1,
+            titleLink: ''
+          })]))
+      ) as Observable<TitlePreviewEntity[]>;
   }
 }

@@ -1,8 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
 
-import { TitlePreviewModel } from '../models/title-preview.model';
+import { TitlePreviewEntity } from '../entity/title-preview-entity';
 
 import { WebScrapingService } from '../core/web-scraping/web-scraping.service';
+import { Observable } from 'rxjs';
 
 @Controller('ongoings')
 export class OngoingsController {
@@ -13,7 +14,7 @@ export class OngoingsController {
   }
 
   @Get('')
-  public async getOngoings(): Promise<TitlePreviewModel[]> {
+  public getOngoings(): Observable<TitlePreviewEntity[]> {
 
     return this.webScrapingService.parseSite();
   }
