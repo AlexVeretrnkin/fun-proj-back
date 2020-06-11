@@ -4,20 +4,25 @@ import { Browser, launch, Page, SerializableOrJSHandle } from 'puppeteer';
 
 import { TitlePreviewEntity } from '../../entity/title-preview-entity';
 import { fromPromise } from 'rxjs/internal-compatibility';
-import { switchMap, tap } from 'rxjs/operators';
-import { Observable } from 'rxjs';
+import { catchError, map, retry, retryWhen, switchMap, tap } from 'rxjs/operators';
+import { Observable, combineLatest, of } from 'rxjs';
+
+import { TitleService } from '../title/title.service';
+
 import { AnilibriaScrapingPreviewModel } from '../../models/scraping/anilibria-scraping-preview.model';
 import { anilibriaScrapingPreviewConfig } from '../../models/scraping-config/anilibria-scraping-preview.config';
-import { TitleService } from '../title/title.service';
+import { AnilibriaScrapingTitlePageModel } from '../../models/scraping/anilibria-scraping-title-page.model';
+import { anilibriaScrapingTitlePageConfig } from '../../models/scraping-config/anilibria-scraping-title-page.config';
 
 @Injectable()
 export class WebScrapingService {
   private readonly previewConfig: AnilibriaScrapingPreviewModel = anilibriaScrapingPreviewConfig;
+  private readonly titlePageConfig: AnilibriaScrapingTitlePageModel = anilibriaScrapingTitlePageConfig;
 
   private browser: Browser;
   private page: Page;
 
-  private test: TitlePreviewEntity = new TitlePreviewEntity();
+  private test: TitlePreviewEntity[] = []
 
   constructor(
     private readonly titleService: TitleService
@@ -30,11 +35,13 @@ export class WebScrapingService {
         tap((browser: Browser) => this.browser = browser),
         switchMap(() => this.browser.newPage()),
         tap((page: Page) => this.page = page),
-        switchMap((page: Page) => page.goto('https://www.anilibria.tv/pages/schedule.php')),
+        switchMap((page: Page) => fromPromise(page.goto('https://www.anilibria.tv/pages/schedule.php'))),
         switchMap(() => fromPromise(this.page.evaluate((config: AnilibriaScrapingPreviewModel) => {
                 const infoItem: Record<string, any> = {};
 
                 const info: Record<string, any>[] = [];
+
+                infoItem.status = 0;
 
                 [...document.getElementsByClassName(config.previewItemClassName)]
                   .forEach((item: HTMLLinkElement) => {
@@ -59,21 +66,58 @@ export class WebScrapingService {
                   });
 
                 return info;
-              }, this.previewConfig as unknown as SerializableOrJSHandle),
-            )
+              },
+            this.previewConfig as unknown as SerializableOrJSHandle),
+          )
         ),
-        tap(() => this.browser.close()),
-        tap(() => this.titleService.addTitles([
-          new TitlePreviewEntity({
-            id: 0,
-            imgUrl: '',
-            title: '',
-            description: '',
-            series: 1,
-            totalSeries: 10,
-            status: 1,
-            titleLink: ''
-          })]))
+        tap((info: TitlePreviewEntity[]) => this.test = info),
+        switchMap(() => {
+            return combineLatest(
+              [
+                ...this.test.slice(9, 10).map((item: TitlePreviewEntity) => {
+                  return fromPromise(this.browser.newPage())
+                    .pipe(
+                      switchMap((page: Page) =>
+                        fromPromise(page.goto(item.titleLink, {waitUntil: 'domcontentloaded'}))
+                          .pipe(
+                            switchMap(() => this.parseTitleInfo(item, page)),
+                          )
+                      )
+                    );
+                }),
+              ],
+            );
+          }
+        ),
+        // tap((res: TitlePreviewEntity[]) => console.log(res)),
+        // switchMap(() => this.parseTitleInfo(this.test[0])),
+        // map(() => [this.test[0]]),
+        // tap(() => this.closeBrowser()),
       ) as Observable<TitlePreviewEntity[]>;
+  }
+
+  public closeBrowser(): Observable<void> {
+    return fromPromise(this.browser.close());
+  }
+
+  private parseTitleInfo(title: TitlePreviewEntity, page: Page): Observable<TitlePreviewEntity> {
+    console.log(page.url());
+
+    return fromPromise(page.evaluate((config: AnilibriaScrapingTitlePageModel, title: TitlePreviewEntity) => {
+              console.log(document.getElementById(config.seriesTotalCountId));
+
+              console.log(document.body);
+
+              try {
+                title.totalSeries = parseInt(
+                  (document.getElementById(config.seriesTotalCountId) as HTMLInputElement).value.match(/\d+/g)[0]
+                );
+              } catch (e) {
+                title.totalSeries = -1;
+              }
+
+              return title;
+            }, this.titlePageConfig as unknown as SerializableOrJSHandle, title as unknown as SerializableOrJSHandle)
+          );
   }
 }
