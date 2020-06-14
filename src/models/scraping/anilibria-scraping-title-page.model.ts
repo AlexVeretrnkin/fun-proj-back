@@ -1,3 +1,4 @@
 export class AnilibriaScrapingTitlePageModel {
-  public seriesTotalCountId: string;
+  public descriptionId: string;
+  public seriesRegexpSource: string;
 }

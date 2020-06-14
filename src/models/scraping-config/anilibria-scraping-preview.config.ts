@@ -6,5 +6,6 @@ export const anilibriaScrapingPreviewConfig: AnilibriaScrapingPreviewModel = {
   titleDescriptionClassName: 'schedule-description',
   titleSeriesClassName: 'schedule-series',
   titleNameClassName: 'schedule-runame',
-  titleImageClassName: ''
+  titleImageClassName: '',
+  titleIdRegexpSource: '\\?(\\d+)'
 };

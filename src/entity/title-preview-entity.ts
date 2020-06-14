@@ -1,11 +1,12 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 import { StatusEnum } from '../models/status.enum';
 
 @Entity()
 export class TitlePreviewEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @Column()
+  @PrimaryColumn()
+  public id: number;
 
   @Column()
   public imgUrl: string;
@@ -27,7 +28,6 @@ export class TitlePreviewEntity {
 
   @Column()
   public titleLink: string;
-
 
   constructor(title?: TitlePreviewEntity) {
     if (title) {

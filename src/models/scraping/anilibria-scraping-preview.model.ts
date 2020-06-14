@@ -5,4 +5,5 @@ export class AnilibriaScrapingPreviewModel {
   public titleSeriesClassName: string;
   public titleNameClassName: string;
   public titleImageClassName: string;
+  public titleIdRegexpSource: string;
 }

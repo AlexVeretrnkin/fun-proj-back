@@ -60,7 +60,9 @@ export class WebScrapingService {
                       item.querySelectorAll(`span.${config.titleDescriptionClassName}`)
                         .item(0).textContent;
 
-                    infoItem.imgUrl = item.querySelectorAll('a').item(0).href;
+                    infoItem.imgUrl = item.querySelectorAll('img').item(0).src;
+
+                    infoItem.id = infoItem.imgUrl.match(RegExp(config.titleIdRegexpSource))[1];
 
                     info.push({ ...infoItem });
                   });
@@ -74,13 +76,14 @@ export class WebScrapingService {
         switchMap(() => {
             return combineLatest(
               [
-                ...this.test.slice(9, 10).map((item: TitlePreviewEntity) => {
+                ...this.test.map((item: TitlePreviewEntity) => {
                   return fromPromise(this.browser.newPage())
                     .pipe(
                       switchMap((page: Page) =>
                         fromPromise(page.goto(item.titleLink, {waitUntil: 'domcontentloaded'}))
                           .pipe(
                             switchMap(() => this.parseTitleInfo(item, page)),
+                            tap(() => fromPromise(page.close()))
                           )
                       )
                     );
@@ -89,10 +92,8 @@ export class WebScrapingService {
             );
           }
         ),
-        // tap((res: TitlePreviewEntity[]) => console.log(res)),
-        // switchMap(() => this.parseTitleInfo(this.test[0])),
-        // map(() => [this.test[0]]),
-        // tap(() => this.closeBrowser()),
+        switchMap((info: TitlePreviewEntity[]) => this.titleService.addTitles(info)),
+        tap(() => this.closeBrowser()),
       ) as Observable<TitlePreviewEntity[]>;
   }
 
@@ -101,23 +102,13 @@ export class WebScrapingService {
   }
 
   private parseTitleInfo(title: TitlePreviewEntity, page: Page): Observable<TitlePreviewEntity> {
-    console.log(page.url());
-
     return fromPromise(page.evaluate((config: AnilibriaScrapingTitlePageModel, title: TitlePreviewEntity) => {
-              console.log(document.getElementById(config.seriesTotalCountId));
+      title.totalSeries = parseInt(
+        document.getElementById(config.descriptionId).textContent.match(config.seriesRegexpSource)[1]
+      );
 
-              console.log(document.body);
-
-              try {
-                title.totalSeries = parseInt(
-                  (document.getElementById(config.seriesTotalCountId) as HTMLInputElement).value.match(/\d+/g)[0]
-                );
-              } catch (e) {
-                title.totalSeries = -1;
-              }
-
-              return title;
-            }, this.titlePageConfig as unknown as SerializableOrJSHandle, title as unknown as SerializableOrJSHandle)
-          );
+      return title;
+      }, this.titlePageConfig as unknown as SerializableOrJSHandle, title as unknown as SerializableOrJSHandle)
+    );
   }
 }
