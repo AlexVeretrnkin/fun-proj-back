@@ -4,8 +4,8 @@ import { Browser, launch, Page, SerializableOrJSHandle } from 'puppeteer';
 
 import { TitlePreviewEntity } from '../../entity/title-preview-entity';
 import { fromPromise } from 'rxjs/internal-compatibility';
-import { catchError, map, retry, retryWhen, switchMap, tap } from 'rxjs/operators';
-import { Observable, combineLatest, of } from 'rxjs';
+import { switchMap, tap } from 'rxjs/operators';
+import { Observable, combineLatest } from 'rxjs';
 
 import { TitleService } from '../title/title.service';
 
@@ -36,42 +36,7 @@ export class WebScrapingService {
         switchMap(() => this.browser.newPage()),
         tap((page: Page) => this.page = page),
         switchMap((page: Page) => fromPromise(page.goto('https://www.anilibria.tv/pages/schedule.php'))),
-        switchMap(() => fromPromise(this.page.evaluate((config: AnilibriaScrapingPreviewModel) => {
-                const infoItem: Record<string, any> = {};
-
-                const info: Record<string, any>[] = [];
-
-                infoItem.status = 0;
-
-                [...document.getElementsByClassName(config.previewItemClassName)]
-                  .forEach((item: HTMLLinkElement) => {
-                    infoItem.titleLink = item.querySelectorAll('a').item(0).href;
-
-                    infoItem.title = item.querySelectorAll(`span.${config.titleNameClassName}`)
-                      .item(0).textContent;
-
-                    infoItem.series = parseInt(
-                      item.querySelectorAll(`span.${config.titleSeriesClassName}`)
-                        .item(0).textContent
-                        .match(/\d+/g)[1]
-                    );
-
-                    infoItem.description =
-                      item.querySelectorAll(`span.${config.titleDescriptionClassName}`)
-                        .item(0).textContent;
-
-                    infoItem.imgUrl = item.querySelectorAll('img').item(0).src;
-
-                    infoItem.id = infoItem.imgUrl.match(RegExp(config.titleIdRegexpSource))[1];
-
-                    info.push({ ...infoItem });
-                  });
-
-                return info;
-              },
-            this.previewConfig as unknown as SerializableOrJSHandle),
-          )
-        ),
+        switchMap(() => this.parseCurrentOngoings(this.page)),
         tap((info: TitlePreviewEntity[]) => this.test = info),
         switchMap(() => {
             return combineLatest(
@@ -103,12 +68,53 @@ export class WebScrapingService {
 
   private parseTitleInfo(title: TitlePreviewEntity, page: Page): Observable<TitlePreviewEntity> {
     return fromPromise(page.evaluate((config: AnilibriaScrapingTitlePageModel, title: TitlePreviewEntity) => {
-      title.totalSeries = parseInt(
-        document.getElementById(config.descriptionId).textContent.match(config.seriesRegexpSource)[1]
-      );
+      title.totalSeries = document.getElementById(config.descriptionId).textContent.match(config.seriesRegexpSource) ?
+        parseInt(document.getElementById(config.descriptionId).textContent.match(config.seriesRegexpSource)[1]) : 0;
+
+      title.torrentLink = document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(1) ?
+        document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(1).href :
+        document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(0).href;
 
       return title;
       }, this.titlePageConfig as unknown as SerializableOrJSHandle, title as unknown as SerializableOrJSHandle)
+    );
+  }
+
+  private parseCurrentOngoings(page: Page): Observable<TitlePreviewEntity[]> {
+    return fromPromise(page.evaluate((config: AnilibriaScrapingPreviewModel) => {
+        const infoItem: Record<string, any> = {};
+
+        const info: Record<string, any>[] = [];
+
+        infoItem.status = 0;
+
+        [...document.getElementsByClassName(config.previewItemClassName)]
+          .forEach((item: HTMLLinkElement) => {
+            infoItem.titleLink = item.querySelectorAll('a').item(0).href;
+
+            infoItem.title = item.querySelectorAll(`span.${config.titleNameClassName}`)
+              .item(0).textContent;
+
+            infoItem.series = parseInt(
+              item.querySelectorAll(`span.${config.titleSeriesClassName}`)
+                .item(0).textContent
+                .match(/\d+/g)[1]
+            );
+
+            infoItem.description =
+              item.querySelectorAll(`span.${config.titleDescriptionClassName}`)
+                .item(0).textContent;
+
+            infoItem.imgUrl = item.querySelectorAll('img').item(0).src;
+
+            infoItem.id = infoItem.imgUrl.match(RegExp(config.titleIdRegexpSource))[1];
+
+            info.push({ ...infoItem });
+          });
+
+        return info as TitlePreviewEntity[];
+      },
+      this.previewConfig as unknown as SerializableOrJSHandle),
     );
   }
 }

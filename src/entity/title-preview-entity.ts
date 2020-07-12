@@ -29,6 +29,9 @@ export class TitlePreviewEntity {
   @Column()
   public titleLink: string;
 
+  @Column({default: null})
+  public torrentLink: string;
+
   constructor(title?: TitlePreviewEntity) {
     if (title) {
       this.id = title.id;
@@ -39,6 +42,7 @@ export class TitlePreviewEntity {
       this.totalSeries = title.totalSeries;
       this.status = title.status;
       this.titleLink = title.titleLink;
+      this.torrentLink = title.torrentLink;
     }
   }
 }

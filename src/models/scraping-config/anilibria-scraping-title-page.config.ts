@@ -2,5 +2,6 @@ import { AnilibriaScrapingTitlePageModel } from '../scraping/anilibria-scraping-
 
 export const anilibriaScrapingTitlePageConfig: AnilibriaScrapingTitlePageModel =  {
   descriptionId: 'xreleaseInfo',
-  seriesRegexpSource: '\\(?.*?(\\d+).*эп.*\\)?'
+  seriesRegexpSource: '\\(?.*?(\\d+).*эп.*\\)?',
+  torrentLink: 'torrent-download-link'
 }
