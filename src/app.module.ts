@@ -8,7 +8,9 @@ import { CoreModule } from './core/core.module';
 import { OngoingsController } from './ongoings/ongoings.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { TitlePreviewEntity } from './entity/title-preview-entity';
+import { TitlePreviewEntity } from './entity/title-preview.entity';
+import { TitleController } from './title/title.controller';
+import { TitleVideoEntity } from './entity/title-video.entity';
 
 @Module({
   imports: [
@@ -20,13 +22,14 @@ import { TitlePreviewEntity } from './entity/title-preview-entity';
       username: 'postgres',
       password: '1111',
       database: 'fun',
-      entities: [TitlePreviewEntity],
+      entities: [TitlePreviewEntity, TitleVideoEntity],
       synchronize: true,
     }),
   ],
   controllers: [
     AppController,
-    OngoingsController
+    OngoingsController,
+    TitleController
   ],
   providers: [
     AppService

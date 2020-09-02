@@ -4,9 +4,9 @@ import { Repository, UpdateResult } from 'typeorm';
 
 import { fromPromise } from 'rxjs/internal-compatibility';
 import { catchError, map } from 'rxjs/operators';
-import { combineLatest, Observable } from 'rxjs';
+import { combineLatest, from, Observable } from 'rxjs';
 
-import { TitlePreviewEntity } from '../../entity/title-preview-entity';
+import { TitlePreviewEntity } from '../../entity/title-preview.entity';
 
 import { PreviewModel } from '../../models/preview.model';
 import { StatusEnum } from '../../models/status.enum';
@@ -20,7 +20,13 @@ export class TitleService {
   ) {
   }
 
+  public getTitleById(titleId: number): Observable<TitlePreviewEntity> {
+    return from(this.titlesRepository.findOne({id: titleId}));
+  }
+
   public addTitles(titles: TitlePreviewEntity[]): Observable<(TitlePreviewEntity | UpdateResult)[]> {
+    console.log('addTitles', titles);
+
     return combineLatest(
       titles.map((title: TitlePreviewEntity) => this.insertOrUpdateTitle(title))
     );

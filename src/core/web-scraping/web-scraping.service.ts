@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { Browser, launch, Page, SerializableOrJSHandle } from 'puppeteer';
+import { Browser, launch, Page, SerializableOrJSHandle, Response } from 'puppeteer';
 
-import { TitlePreviewEntity } from '../../entity/title-preview-entity';
+import { TitlePreviewEntity } from '../../entity/title-preview.entity';
 import { fromPromise } from 'rxjs/internal-compatibility';
-import { switchMap, tap } from 'rxjs/operators';
+import { map, switchMap, tap } from 'rxjs/operators';
 import { Observable, combineLatest } from 'rxjs';
 
 import { TitleService } from '../title/title.service';
@@ -62,8 +62,43 @@ export class WebScrapingService {
       ) as Observable<TitlePreviewEntity[]>;
   }
 
-  public closeBrowser(): Observable<void> {
-    return fromPromise(this.browser.close());
+  public closeBrowser(browser?: Browser): Observable<void> {
+    const selectedBrowser: Browser = browser || this.browser;
+
+    return fromPromise(selectedBrowser.close());
+  }
+
+  public openBrowser(): Observable<Browser> {
+    return fromPromise(launch({headless: false}));
+  }
+
+  public openNewPage(browser: Browser): Observable<Page> {
+    return fromPromise(browser.newPage());
+  }
+
+  public goToSite(page: Page, titleLink: string): Observable<Response | null> {
+    return  fromPromise(page.goto(titleLink, {waitUntil: 'domcontentloaded'}));
+  }
+
+  public updateCurrentTitle(title: TitlePreviewEntity): Observable<void> {
+    console.log('Updating title --', title.id)
+
+    let browser: Browser;
+
+    return this.openBrowser()
+      .pipe(
+        tap((openedBrowser: Browser) => browser = openedBrowser),
+        switchMap(this.openNewPage),
+        switchMap((page: Page) =>
+          this.goToSite(page, title.titleLink)
+            .pipe(
+              map(() => page)
+            )
+        ),
+        switchMap((page: Page) => this.parseTitleInfo(title, page)),
+        switchMap((info: TitlePreviewEntity) => this.titleService.addTitles([info])),
+        switchMap(() => this.closeBrowser(browser))
+      )
   }
 
   private parseTitleInfo(title: TitlePreviewEntity, page: Page): Observable<TitlePreviewEntity> {
@@ -71,9 +106,9 @@ export class WebScrapingService {
       title.totalSeries = document.getElementById(config.descriptionId).textContent.match(config.seriesRegexpSource) ?
         parseInt(document.getElementById(config.descriptionId).textContent.match(config.seriesRegexpSource)[1]) : 0;
 
-      title.torrentLink = document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(1) ?
-        document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(1).href :
-        document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(0).href;
+      title.torrentLink = document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(0) ?
+        document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(0).href :
+        document.querySelectorAll<HTMLLinkElement>(`a.${config.torrentLink}`).item(1).href;
 
       return title;
       }, this.titlePageConfig as unknown as SerializableOrJSHandle, title as unknown as SerializableOrJSHandle)

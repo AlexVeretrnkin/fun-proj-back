@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 
 import { Observable } from 'rxjs';
 
-import { TitlePreviewEntity } from '../entity/title-preview-entity';
+import { TitlePreviewEntity } from '../entity/title-preview.entity';
 
 import { PreviewModel } from '../models/preview.model';
 
