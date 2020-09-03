@@ -1,0 +1,44 @@
+# THIS DOCKERFILE IS INTENDED FOR DEVELOPMENT ENVIRONMENTS
+# DO NOT USE THIS FOR PRODUCTION USAGES.
+
+version: '3'
+
+services:
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_DATABASE: 'dota_bots'
+      MYSQL_USER: 'root'
+      MYSQL_PASSWORD: '9Svh3si3vHjH'
+      MYSQL_ROOT_PASSWORD: '9Svh3si3vHjH'
+    ports:
+      - '3306:3306'
+    networks:
+      - app-network
+    volumes:
+      - my-db:/var/lib/mysql
+  bot:
+    build: ./
+    restart: always
+    command: node dist/main.js
+    environment:
+      DB_HOST: 'db'
+      DB_USER: 'root'
+      DB_PASS: '9Svh3si3vHjH'
+      NODE_ENV: 'beta'
+      project: 'market'
+    ports:
+      - '9595:9595'
+    networks:
+      - app-network
+    links:
+      - "db:database"
+    depends_on:
+      - db
+volumes:
+  my-db:
+    driver: local
+networks:
+  app-network:
+    driver: bridge
