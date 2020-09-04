@@ -1,28 +1,21 @@
-FROM node:12.13-alpine As development
+FROM node:12-alpine AS builder
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-COPY package*.json ./
+COPY ./package.json ./
 
-RUN npm install --only=development
+RUN apk add --no-cache chromium git
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
+
+ENV CHROMIUM_PATH /usr/bin/chromium-browser
+
+RUN npm install
 
 COPY . .
 
 RUN npm run build
 
-FROM node:12.13-alpine as production
+EXPOSE 3000
 
-ARG NODE_ENV=production
-ENV NODE_ENV=${NODE_ENV}
-
-WORKDIR /usr/src/app
-
-COPY package*.json ./
-
-RUN npm install --only=production
-
-COPY . .
-
-COPY --from=development /usr/src/app/dist ./dist
-
-CMD ["node", "dist/main"]
+CMD ["npm", "run", "start:prod"]

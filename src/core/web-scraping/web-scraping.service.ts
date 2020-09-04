@@ -30,7 +30,10 @@ export class WebScrapingService {
   }
 
   public parseSite(): Observable<TitlePreviewEntity[]> {
-    return fromPromise(launch({headless: false}))
+    return fromPromise(launch({
+      executablePath: process.env.CHROMIUM_PATH,
+      args: ['--no-sandbox'],
+    }))
       .pipe(
         tap((browser: Browser) => this.browser = browser),
         switchMap(() => this.browser.newPage()),
@@ -69,7 +72,10 @@ export class WebScrapingService {
   }
 
   public openBrowser(): Observable<Browser> {
-    return fromPromise(launch({headless: false}));
+    return fromPromise(launch({
+      executablePath: process.env.CHROMIUM_PATH,
+      args: ['--no-sandbox'], // This was important. Can't remember why
+    }));
   }
 
   public openNewPage(browser: Browser): Observable<Page> {

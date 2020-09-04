@@ -1,44 +1,38 @@
-# THIS DOCKERFILE IS INTENDED FOR DEVELOPMENT ENVIRONMENTS
-# DO NOT USE THIS FOR PRODUCTION USAGES.
-
-version: '3'
-
+version: "3.7"
 services:
   db:
-    image: mysql:5.7
+    image: postgres
     restart: always
     environment:
-      MYSQL_DATABASE: 'dota_bots'
-      MYSQL_USER: 'root'
-      MYSQL_PASSWORD: '9Svh3si3vHjH'
-      MYSQL_ROOT_PASSWORD: '9Svh3si3vHjH'
+      POSTGRES_PASSWORD: 1111
+      POSTGRES_USER: postgres
+      POSTGRES_DB: fun
     ports:
-      - '3306:3306'
-    networks:
-      - app-network
-    volumes:
-      - my-db:/var/lib/mysql
-  bot:
-    build: ./
+      - 5432:5432
+
+  web:
+    image: fun-proj
     restart: always
-    command: node dist/main.js
-    environment:
-      DB_HOST: 'db'
-      DB_USER: 'root'
-      DB_PASS: '9Svh3si3vHjH'
-      NODE_ENV: 'beta'
-      project: 'market'
     ports:
-      - '9595:9595'
-    networks:
-      - app-network
-    links:
-      - "db:database"
+      - 3000:3000
     depends_on:
       - db
-volumes:
-  my-db:
-    driver: local
-networks:
-  app-network:
-    driver: bridge
+
+#  db:
+#    image: postgres
+#    restart: always
+#    environment:
+#      POSTGRES_PASSWORD: 1111
+#      POSTGRES_USER: postgres
+#      POSTGRES_DB: fun
+#    volumes:
+#      - /var/lib/postgresql/data
+#    ports:
+#      - "5432:5432"
+#  adminer:
+#    image: adminer
+#    restart: always
+#    ports:
+#      - 8080:8080
+#    depends_on:
+#      - db
