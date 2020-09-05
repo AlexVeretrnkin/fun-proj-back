@@ -44,6 +44,16 @@ export class TitleController {
       );
   }
 
+  @Get('video/test')
+  public getTitleVideoTest(
+    @Res() res: Response,
+    @Req() req: Request,
+  ) {
+    console.log('???');
+
+    this.videoFileService.getVideo(req, res, './small.mp4')
+  }
+
   @Post('download')
   public downloadTitle(@Body('titleId') titleId: number): void {
     let title: TitlePreviewEntity;

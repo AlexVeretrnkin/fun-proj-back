@@ -48,6 +48,9 @@ export class VideoFileService {
       });
     } else {
       const head: OutgoingHttpHeaders = {
+        //todo improve later
+        'Content-Range': `bytes 0-38363000/${fileSize}`,
+        'Accept-Ranges': 'bytes',
         'Content-Length': fileSize,
         'Content-Type': 'video/mp4'
       };
