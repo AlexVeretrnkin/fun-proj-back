@@ -17,7 +17,7 @@ import { TitleVideoEntity } from './entity/title-video.entity';
     CoreModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'db',
+      host: process.env.db || 'localhost',
       port: 5432,
       username: 'postgres',
       password: '1111',

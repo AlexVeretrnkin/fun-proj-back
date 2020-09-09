@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as WebTorrent from 'webtorrent';
 
 import { BehaviorSubject, interval, Observable, Observer, throwError } from 'rxjs';
-import { catchError, map, switchMap, takeWhile, tap } from 'rxjs/operators';
+import { map, switchMap, takeWhile, tap } from 'rxjs/operators';
 
 import { TitleVideoService } from '../title-video/title-video.service';
 import { TorrentFileModel } from '../../models/torrent/torrent-file';
@@ -13,6 +13,7 @@ import { Torrent } from '../../models/torrent/torrent';
 import { TorrentClient } from '../../models/torrent/torrent-client';
 import { WebScrapingService } from '../web-scraping/web-scraping.service';
 import { TitlePreviewEntity } from '../../entity/title-preview.entity';
+import * as fs from 'fs';
 
 @Injectable({ scope: Scope.REQUEST })
 export class TorrentLoaderService {
@@ -112,6 +113,8 @@ export class TorrentLoaderService {
             .pipe(
               takeWhile(() => torrent.progress !== 1),
               tap(() => {
+                this.convertFiles(torrent.files.map(f => f.path), title.id);
+
                 console.log(torrent.files.map(f => f.progress));
               })
             )
@@ -154,6 +157,53 @@ export class TorrentLoaderService {
         });
       }
     );
+  }
+
+  private convertFiles(filePaths: string[], titleId: number): void {
+    filePaths.forEach((path: string) => {
+      if (
+        fs.existsSync(this.getFileStoragePath(path)) &&
+        !fs.existsSync(this.getFileStoragePath(this.renameFile(path)))
+      ) {
+        this.convertToMp4Format(this.getFileStoragePath(path), titleId)
+      }
+    });
+  }
+
+  private renameFile(fileName: string): string {
+    return fileName.replace(/\.[a-z]*$/, '.mp4')
+  }
+
+  public convertToMp4Format(pathToFile: string, titleId: number): void {
+    console.log('convertToMp4Format');
+
+    const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const ffmpeg = require('fluent-ffmpeg');
+    ffmpeg.setFfmpegPath(ffmpegPath)
+
+    ffmpeg(pathToFile)
+      .output(
+        this.renameFile(pathToFile)
+      )
+      .on('progress', (progress) => {
+        console.log(progress);
+      })
+      .on('end', (err) => {
+        if(!err) {
+          console.log('conversion Done', pathToFile);
+
+          this.titleVideoService.addVideoFile(
+            titleId,
+            [this.getFileStoragePath(this.renameFile(pathToFile))]
+          )
+
+          fs.unlinkSync(pathToFile);
+        }
+      })
+      .on('error', function(err){
+        console.log('error: ', err)
+      }).run();
   }
 
   private sortByFileName(files: TorrentFileModel[]): void {

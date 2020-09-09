@@ -22,7 +22,16 @@ export class TitleVideoService {
     return fromPromise(this.titlesVideoRepository.findOne({
       ...videoQuery
     })).pipe(
-      map((video: TitleVideoEntity) => video.fileLocation),
+      map((video: TitleVideoEntity) => video ? video.fileLocation : null),
+      take(1)
+    );
+  }
+
+  public getAllVideoFileLocations(titleId: number): Observable<string[]> {
+    return fromPromise(this.titlesVideoRepository.find({
+      titleId
+    })).pipe(
+      map((video: TitleVideoEntity[]) => video.map((item: TitleVideoEntity) => item.fileLocation)),
       take(1)
     );
   }
